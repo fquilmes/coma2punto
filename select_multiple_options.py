@@ -1,4 +1,4 @@
-def select_multiple_options(prompt, options):
+def select_multiple_options(prompt: str, options: list):
     """
     Muestra una ventana emergente para que el usuario seleccione una o varias opciones.
 

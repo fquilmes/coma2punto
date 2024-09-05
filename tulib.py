@@ -275,3 +275,63 @@ def get_number_of_beams(dicom_info):
         int: El numero de campos en el archivo DICOM, excluyendo SETUP.
     """
     return len([beam for beam in dicom_info.BeamSequence if beam.TreatmentDeliveryType != "SETUP"])
+def generar_matriz_MLC(beam):
+    """
+    Genera una matriz con las posiciones del MLC para cada punto de control.
+    
+    Parameters:
+    beam: DICOM Beam object, contiene la secuencia de puntos de control y las posiciones de las láminas.
+
+    Returns:
+    numpy.ndarray: Matriz donde cada fila corresponde a una lámina y cada columna a un punto de control.
+    """
+    n_laminas = 120  # Número de láminas del MLC
+    n_puntos_control = int(beam.NumberOfControlPoints)  # Número de puntos de control en el Beam
+
+    # Inicializar la matriz con ceros, donde filas son láminas y columnas son puntos de control
+    matriz_MLC = np.zeros((n_laminas, n_puntos_control))
+
+    # Iterar sobre cada punto de control
+    for idx_control, control_point in enumerate(beam.ControlPointSequence):
+        # Obtener las posiciones del MLC para este punto de control
+        if idx_control == 0:
+            mlc_positions = control_point.BeamLimitingDevicePositionSequence[2].LeafJawPositions
+        else:
+            mlc_positions = control_point.BeamLimitingDevicePositionSequence[0].LeafJawPositions
+        
+        # Convertir la lista de posiciones de láminas a formato numérico y almacenarlas en la matriz
+        matriz_MLC[:, idx_control] = np.array(mlc_positions, dtype=float)
+
+    return matriz_MLC
+
+def generar_arrays_meterset(beam, UMs: float):
+    """
+    Genera dos arrays:
+    1. Un array con los valores de CumulativeMetersetWeight para cada punto de control.
+    2. Un array con el producto UM * CumulativeMetersetWeight / 100 para cada punto de control.
+
+    Parameters:
+    beam: DICOM Beam object, contiene la secuencia de puntos de control.
+    UMs: float, valor de las unidades monitor del campo.
+
+    Returns:
+    tuple: (array_meterset_weight, array_um_weighted)
+        - array_meterset_weight: numpy.ndarray con los valores de CumulativeMetersetWeight.
+        - array_um_weighted: numpy.ndarray con el producto UM * CumulativeMetersetWeight / 100.
+    """
+    n_ctrl_pts = int(beam.NumberOfControlPoints)  # Número de puntos de control en el Beam
+
+    # Inicializar los arrays con ceros
+    array_meterset_weight = np.zeros(n_ctrl_pts)
+    array_um_weighted = np.zeros(n_ctrl_pts)
+
+    # Iterar sobre cada punto de control
+    for idx_control, control_point in enumerate(beam.ControlPointSequence):
+        # Obtener el valor de CumulativeMetersetWeight
+        meterset_weight = float(control_point.CumulativeMetersetWeight)
+        array_meterset_weight[idx_control] = meterset_weight
+
+        # Calcular UM * CumulativeMetersetWeight / 100
+        array_um_weighted[idx_control] = UMs * meterset_weight / 100
+
+    return array_meterset_weight, array_um_weighted
